@@ -12,6 +12,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import io.smallrye.reactive.messaging.ce.OutgoingCloudEventMetadata;
 import io.smallrye.reactive.messaging.kafka.KafkaRecord;
 import io.vertx.core.json.JsonObject;
 import org.apache.kafka.common.header.Headers;
@@ -43,6 +44,11 @@ public class KafkaProducerResource {
             log.error("Record value cannot be null or empty");
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
         }
+        String type = json.getString("type");
+        if (type == null || type.isBlank()) {
+            log.error("Record type cannot be null or empty");
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+        }
         Map<String,Object> headers = json.getJsonObject("headers", new JsonObject()).getMap();
         StringBuffer sb = new StringBuffer();
         headers.forEach((key1, value1) -> sb.append(key1).append(":").append(value1.toString()).append(", "));
@@ -54,11 +60,11 @@ public class KafkaProducerResource {
         log.info("   Key: " + key);
         log.info("   Headers: " + hs);
         log.info("   Value: " + value);
-        emitter.send(toMessage(key, json.getJsonObject("value").toString(), headers));
+        emitter.send(toMessage(key, type, json.getJsonObject("value").toString(), headers));
         return Response.ok().build();
     }
 
-    private org.eclipse.microprofile.reactive.messaging.Message<String> toMessage(String key, String value, Map<String, Object> headers) {
+    private org.eclipse.microprofile.reactive.messaging.Message<String> toMessage(String key, String type, String value, Map<String, Object> headers) {
         KafkaRecord<String, String> record = KafkaRecord.of(key, value);
         Headers h = record.getHeaders();
         headers.keySet().stream().collect(Collectors.toMap(Function.identity(), new Function<String, byte[]>() {
@@ -78,7 +84,7 @@ public class KafkaProducerResource {
                 return value.toString().getBytes();
             }
         })).forEach(h::add);
-        return record;
+        return record.addMetadata(OutgoingCloudEventMetadata.builder().withType(type).build());
     }
 
 }
