@@ -1,6 +1,7 @@
 package com.redhat.emergency.response.kafka;
 
 import java.nio.ByteBuffer;
+import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
@@ -84,7 +85,7 @@ public class KafkaProducerResource {
                 return value.toString().getBytes();
             }
         })).forEach(h::add);
-        return record.addMetadata(OutgoingCloudEventMetadata.builder().withType(type).build());
+        return record.addMetadata(OutgoingCloudEventMetadata.builder().withType(type).withTimestamp(OffsetDateTime.now().toZonedDateTime()).build());
     }
 
 }
